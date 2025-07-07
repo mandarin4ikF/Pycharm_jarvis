@@ -1,8 +1,14 @@
 {
-    "aliases": "C:\\Users\\Огузок\\PycharmProjects\\pup\\indexer\\aliases.py",
-    "indexer": "C:\\Users\\Огузок\\PycharmProjects\\pup\\indexer\\indexer.py",
-    "software": "C:\\Users\\Огузок\\PycharmProjects\\pup\\indexer\\software.py",
-    "self-study": "C:\\Users\\Огузок\\PycharmProjects\\pup\\self-study\\self-study.py",
-    "listen": "C:\\Users\\Огузок\\PycharmProjects\\pup\\Vosk\\listen.py",
-    "tts": "C:\\Users\\Огузок\\PycharmProjects\\pup\\Vosk\\tts.py"
+    "stella": "C:\\Users\\Огузок\\Downloads\\Telegram Desktop\\Stella\\Stella\\Stella.exe",
+    "eadesktop": "C:\\Program Files\\Electronic Arts\\EA Desktop\\EA Desktop\\EADesktop.exe",
+    "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "ninja": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe",
+    "vcpkg": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\vcpkg\\vcpkg.exe",
+    "wsl": "C:\\Program Files\\WSL\\wsl.exe",
+    "anydesk": "C:\\Program Files (x86)\\AnyDesk\\AnyDesk.exe",
+    "planetvpn": "C:\\Program Files (x86)\\PlanetVPN\\PlanetVPN.exe",
+    "xray": "C:\\Program Files (x86)\\PlanetVPN\\bin\\Xray\\xray.exe",
+    "steam": "C:\\Program Files (x86)\\Steam\\steam.exe",
+    "mount&bladeiibannerlord": "C:\\Users\\Огузок\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Steam\\Mount & Blade II Bannerlord.url",
+    "warthunder": "C:\\Users\\Огузок\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Steam\\War Thunder.url"
 }

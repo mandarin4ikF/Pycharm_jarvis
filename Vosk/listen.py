@@ -4,10 +4,12 @@ import json
 import os
 from openai import OpenAI  # Импортируем новый клиент
 import pyttsx3
+from dotenv import load_dotenv
 
+load_dotenv()  # загружаем переменные из .env
 # --- Конфигурация ---
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "vosk-model-small-ru-0.22")
-OPENAI_KEY = ''
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
 # --- Инициализация ---
 client = OpenAI(api_key=OPENAI_KEY)  # Новый клиент OpenAI
