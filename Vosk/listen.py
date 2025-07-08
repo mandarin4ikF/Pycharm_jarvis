@@ -2,17 +2,20 @@ from vosk import Model, KaldiRecognizer
 import pyaudio
 import json
 import os
-from openai import OpenAI  # Импортируем новый клиент
+from openai import OpenAI
 import pyttsx3
 from dotenv import load_dotenv
+from modules.app_launcher import AppLauncher  # Импорт модуля запуска
 
-load_dotenv()  # загружаем переменные из .env
+load_dotenv()
+
 # --- Конфигурация ---
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "vosk-model-small-ru-0.22")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 
 # --- Инициализация ---
-client = OpenAI(api_key=OPENAI_KEY)  # Новый клиент OpenAI
+client = OpenAI(api_key=OPENAI_KEY)
+app_launcher = AppLauncher()  # Создаем экземпляр AppLauncher
 
 # 1. Проверка модели Vosk
 if not os.path.exists(MODEL_PATH):
@@ -66,13 +69,22 @@ try:
         
         if recognizer.AcceptWaveform(data):
             result = json.loads(recognizer.Result())
-            user_text = result.get("text", "")
+            user_text = result.get("text", "").strip()
             
             if user_text:
                 print(f"Вы: {user_text}")
-                response = ask_chatgpt(user_text)
-                print(f"GPT: {response}")
-                text_to_speech(response)
+                
+                # Сначала проверяем команду на открытие приложения
+                app_response = app_launcher.execute_command(user_text)
+                
+                if app_response:
+                    print(f"Команда: {app_response}")
+                    text_to_speech(app_response)
+                else:
+                    # Если это не команда - отправляем в ChatGPT
+                    response = ask_chatgpt(user_text)
+                    print(f"GPT: {response}")
+                    text_to_speech(response)
 
 except KeyboardInterrupt:
     print("Завершение...")
