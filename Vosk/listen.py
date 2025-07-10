@@ -2,94 +2,133 @@ from vosk import Model, KaldiRecognizer
 import pyaudio
 import json
 import os
-from openai import OpenAI
 import pyttsx3
+import requests
 from dotenv import load_dotenv
-from modules.app_launcher import AppLauncher  # Импорт модуля запуска
+import time
 
-load_dotenv()
+# ╔═══════════════════════════════════════╗
+# ║     Загрузка переменных окружения      ║
+# ╚═══════════════════════════════════════╝
+load_dotenv()  # Подгружаем настройки из .env (например, API ключи)
 
-# --- Конфигурация ---
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "vosk-model-small-ru-0.22")
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+# ╔═══════════════════════════════════════╗
+# ║         Настройка путей и параметров    ║
+# ╚═══════════════════════════════════════╝
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "vosk-model-small-ru-0.22")  # Путь к модели Vosk
+OLLAMA_URL = "http://localhost:11434"  # Локальный адрес сервера Ollama
+OLLAMA_MODEL = "llama3"                  # Имя модели Ollama, которую используем
 
-# --- Инициализация ---
-client = OpenAI(api_key=OPENAI_KEY)
-app_launcher = AppLauncher()  # Создаем экземпляр AppLauncher
-
-# 1. Проверка модели Vosk
+# ╔═══════════════════════════════════════╗
+# ║         Проверка наличия модели Vosk    ║
+# ╚═══════════════════════════════════════╝
 if not os.path.exists(MODEL_PATH):
     print(f"Ошибка: папка модели '{MODEL_PATH}' не найдена!")
     exit(1)
 
-# 2. Загрузка модели Vosk
-model = Model(MODEL_PATH)
-recognizer = KaldiRecognizer(model, 16000)
+# ╔═══════════════════════════════════════╗
+# ║       Инициализация модели Vosk         ║
+# ╚═══════════════════════════════════════╝
+model = Model(MODEL_PATH)  # Загружаем модель для распознавания речи
+recognizer = KaldiRecognizer(model, 16000)  # Инициализируем распознаватель с частотой 16 кГц
 
-# 3. Настройка микрофона
-mic = pyaudio.PyAudio()
+# ╔═══════════════════════════════════════╗
+# ║        Настройка микрофона PyAudio      ║
+# ╚═══════════════════════════════════════╝
+mic = pyaudio.PyAudio()  # Инициализация PyAudio
 stream = mic.open(
-    format=pyaudio.paInt16,
-    channels=1,
-    rate=16000,
-    input=True,
-    frames_per_buffer=8192
+    format=pyaudio.paInt16,     # 16-битный звук
+    channels=1,                 # Моно канал
+    rate=16000,                 # Частота дискретизации 16 кГц (та же, что у Vosk)
+    input=True,                 # Вход с микрофона
+    frames_per_buffer=4096      # Размер буфера для чтения данных
 )
 
-# 4. Инициализация синтеза речи (оффлайн)
-engine = pyttsx3.init()
-engine.setProperty('rate', 150)
+# ╔═══════════════════════════════════════╗
+# ║      Инициализация синтеза речи        ║
+# ╚═══════════════════════════════════════╝
+engine = pyttsx3.init()  # Инициализируем движок озвучивания
+engine.setProperty('rate', 150)  # Скорость речи (слов в минуту)
 voices = engine.getProperty('voices')
 for voice in voices:
-    if 'russian' in voice.name.lower():
+    if 'russian' in voice.name.lower():  # Ищем и устанавливаем русский голос
         engine.setProperty('voice', voice.id)
         break
 
-# --- Функции ---
-def ask_chatgpt(prompt):
-    """Отправка запроса в ChatGPT (новый API)"""
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7
-    )
-    return response.choices[0].message.content
+
+# ╔═══════════════════════════════════════╗
+# ║         П О Л Е З Н Ы Е  Ф-Ц И И      ║
+# ╚═══════════════════════════════════════╝
+
+def ask_ollama(prompt):
+    """
+    Отправляет запрос на локальный Ollama сервер и возвращает ответ модели.
+    """
+    try:
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",  # Эндпоинт для генерации текста
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False
+            }
+        )
+        response.raise_for_status()  # Проверяем успешный ответ сервера
+        data = response.json()
+        return data.get("response", "Нет поля 'response' в ответе")
+    except Exception as e:
+        return f"Ошибка при обращении к локальному ИИ: {e}"
 
 def text_to_speech(text):
-    """Озвучивание текста"""
+    """
+    Озвучивает текст через pyttsx3.
+    """
     engine.say(text)
     engine.runAndWait()
 
-# --- Основной цикл ---
+# ╔═══════════════════════════════════════╗
+# ║              Основной цикл            ║
+# ╚═══════════════════════════════════════╝
+
 print("Говорите... (для выхода нажмите Ctrl+C)")
 
 try:
     while True:
-        data = stream.read(4096)
-        
+        try:
+            # Читаем аудиоданные с микрофона, игнорируем переполнение буфера
+            data = stream.read(4096, exception_on_overflow=False)
+        except IOError as e:
+            print(f"Ошибка чтения микрофона: {e}")
+            continue  # Если ошибка — пропускаем итерацию
+
+        # Если получена полноценная часть речи
         if recognizer.AcceptWaveform(data):
             result = json.loads(recognizer.Result())
             user_text = result.get("text", "").strip()
-            
+
             if user_text:
                 print(f"Вы: {user_text}")
-                
-                # Сначала проверяем команду на открытие приложения
-                app_response = app_launcher.execute_command(user_text)
-                
-                if app_response:
-                    print(f"Команда: {app_response}")
-                    text_to_speech(app_response)
-                else:
-                    # Если это не команда - отправляем в ChatGPT
-                    response = ask_chatgpt(user_text)
-                    print(f"GPT: {response}")
-                    text_to_speech(response)
+
+                prompt = (
+                    "Ты — голосовой помощник Джарвис. Отвечай кратко и по существу. Отвечай на русском.\n\n"
+                    f"Вопрос: {user_text}"
+                )
+
+                response = ask_ollama(prompt)
+                print(f"JARVIS: {response}")
+                text_to_speech(response)
+
+        time.sleep(0.01)# Небольшая пауза для разгрузки процессора
 
 except KeyboardInterrupt:
     print("Завершение...")
+
 finally:
-    stream.stop_stream()
-    stream.close()
-    mic.terminate()
+    # Безопасно закрываем аудио поток
+    try:
+        stream.stop_stream()
+        stream.close()
+        mic.terminate()
+    except Exception as e:
+        print(f"Ошибка при остановке аудио: {e}")
     engine.stop()

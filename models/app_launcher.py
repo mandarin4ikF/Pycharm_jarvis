@@ -74,4 +74,4 @@ class AppLauncher:
 if __name__ == "__main__":
     launcher = AppLauncher()
     print("Тест запуска приложений:")
-    print(launcher.execute_command("запусти вартандер"))
+    print(launcher.execute_command("запусти хром"))
