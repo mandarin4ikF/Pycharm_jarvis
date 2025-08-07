@@ -1,11 +1,11 @@
-import tensorflow as tf
 import sounddevice as sd
-import numpy as np
-import time
+import vosk
+import queue
 import sys
-import os
+import json
 
-model_path = r"C:\Pycharm_jarvis\.venv\Lib\site-packages\openwakeword\resources\models\alexa_v0.1.tflite"
+# Путь к модели Vosk
+model_path = r"c:/Pycharm_jarvis/voice_assistant/vosk-model-small-ru-0.22"
 
 # Проверка микрофонов
 print("[Проверка микрофона]")
@@ -20,13 +20,10 @@ except Exception as e:
     print(f"[Ошибка доступа к микрофону] {e}")
     sys.exit(1)
 
-# Загружаем tflite модель через TensorFlow Lite Interpreter
+# Инициализация модели Vosk
 try:
-    print("[Загрузка модели wake word...]")
-    interpreter = tf.lite.Interpreter(model_path=model_path)
-    interpreter.allocate_tensors()
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
+    print("[Загрузка модели Vosk...]")
+    model = vosk.Model(model_path)
     print("[✅] Модель загружена успешно!")
 except Exception as e:
     print(f"[Ошибка загрузки модели] {e}")
@@ -37,68 +34,38 @@ samplerate = 16000  # Обычно модель ожидает 16 кГц
 block_duration = 0.5  # 0.5 секунды
 block_size = int(samplerate * block_duration)
 
-# Для работы с моделями wake word нужно использовать специальный обработчик
-# В данном случае, мы будем использовать предварительно подготовленные признаки
+# Очередь для аудио данных
+q = queue.Queue()
 
-def predict_wake_word(audio_chunk):
-    # Преобразуем аудио в нужный формат для модели
-    # Модель ожидает int8 данные с размерностью [1, 1, 40]
-    
-    # Убедимся, что у нас правильное количество сэмплов
-    if len(audio_chunk) != 40:
-        print(f"[Ошибка] Ожидалось 40 сэмплов, получено {len(audio_chunk)}")
-        return 0.0
-    
-    # Преобразуем float32 в int8
-    audio_int8 = np.clip(audio_chunk * 127, -128, 127).astype(np.int8)
-    
-    # Подготовка данных для модели: [batch, time, features] -> [1, 1, 40]
-    input_data = np.expand_dims(np.expand_dims(audio_int8, axis=0), axis=0)
-    
-    try:
-        interpreter.set_tensor(input_details[0]['index'], input_data)
-        interpreter.invoke()
-        output_data = interpreter.get_tensor(output_details[0]['index'])
-        confidence = output_data[0][0]
-        return confidence
-    except Exception as e:
-        print(f"[Ошибка выполнения модели] {e}")
-        return 0.0
-
+# Колбэк для записи аудио
 def audio_callback(indata, frames, time_info, status):
     if status:
         print(f"[Статус потока] {status}")
-    try:
-        # Получаем только первый канал
-        audio_data = indata[:, 0]
-        
-        # Для модели wake word нам нужно передавать уже обработанные признаки
-        # В данном случае, мы просто используем raw аудио как есть (не рекомендуется)
-        # Но для корректной работы нужно использовать специальную обработку
-        
-        # Проверяем размер данных - модель ожидает 40 значений
-        if len(audio_data) >= 40:
-            # Используем последние 40 сэмплов
-            data_for_model = audio_data[-40:]
-            
-            confidence = predict_wake_word(data_for_model)
-            if confidence > 0.6:
-                print(f"[🎤 Активировано слово с уверенностью {confidence:.2f}]")
-        else:
-            print(f"[Ошибка] Недостаточно данных для модели: {len(audio_data)} сэмплов")
-            
-    except Exception as e:
-        print(f"[Ошибка обработки аудио] {e}")
+    q.put(bytes(indata))
 
-print("\n[⏳] Инициализация потока... Говори wake word.")
-try:
-    with sd.InputStream(callback=audio_callback, channels=1, samplerate=samplerate, blocksize=block_size):
+# Функция для распознавания речи
+def recognize_wake_word():
+    print("\n[⏳] Инициализация потока... Говори слово-активатор.")
+    with sd.InputStream(samplerate=samplerate, blocksize=block_size, callback=audio_callback, channels=1, dtype='int16'):
         print("[✅] Готов к прослушиванию. Нажми Ctrl+C для выхода.\n")
+        rec = vosk.KaldiRecognizer(model, samplerate)
         while True:
-            time.sleep(0.1)
+            data = q.get()
+            if rec.AcceptWaveform(data):
+                result = json.loads(rec.Result())
+                if result['text']:
+                    print(f"[🎤 Распознано: {result['text']}]")
+                    if "привет" in result['text'].lower():
+                        print(f"[🎤 Активировано слово с уверенностью]")
+                        break
+            else:
+                partial_result = json.loads(rec.PartialResult())
+                if partial_result['partial']:
+                    print(f"[🎤 Частичный результат: {partial_result['partial']}]")
+
+try:
+    recognize_wake_word()
 except KeyboardInterrupt:
     print("\n[🛑] Завершено пользователем.")
 except Exception as e:
     print(f"[Ошибка запуска аудио потока] {e}")
-    print(f"[Ошибка запуска аудио потока] {e}")
-    
