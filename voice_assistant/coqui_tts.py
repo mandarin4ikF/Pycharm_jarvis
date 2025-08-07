@@ -2,32 +2,29 @@ import torch
 import soundfile as sf
 import os
 
-# Выбираем устройство
+# Проверка доступности GPU
 use_cuda = torch.cuda.is_available()
 device = torch.device('cuda' if use_cuda else 'cpu')
-print(f"🖥 Используем устройство: {device}")
 
-# Путь к модели
+# Загрузка модели Coqui
 model_path = os.path.join(os.path.dirname(__file__), 'v4_ru.pt')
-
-# Загружаем модель
 imp = torch.package.PackageImporter(model_path)
 model = imp.load_pickle("tts_models", "model")
 model.to(device)
 
-# Текст и параметры
-text = "Сейчас я говорю через видеокарту, если она доступна."
-sample_rate = 48000
+def speak(text, sample_rate=48000):
+    try:
+        with torch.no_grad():
+            audio = model.apply_tts(text=text, sample_rate=sample_rate)
 
-# Синтез речи
-with torch.no_grad():
-    audio = model.apply_tts(text=text, sample_rate=sample_rate)
+        if isinstance(audio, torch.Tensor):
+            audio = audio.cpu().numpy()
 
-# Перевод аудио на CPU (если оно на GPU)
-if isinstance(audio, torch.Tensor):
-    audio = audio.cpu().numpy()
+        sf.write("output.wav", audio, sample_rate)
 
-# Сохраняем в WAV
-sf.write("output.wav", audio, sample_rate)
+        import sounddevice as sd
+        sd.play(audio, sample_rate)
+        sd.wait()
 
-print("✅ Готово. Файл 'output.wav' создан.")
+    except Exception as e:
+        print(f"❌ Ошибка озвучки: {e}")

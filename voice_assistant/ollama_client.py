@@ -20,6 +20,6 @@ def ask_ollama(prompt):
         )
         response.raise_for_status()
         data = response.json()
-        return data.get("response", "Нет ответа от модели")
+        return data.get("response", "⚠️ Нет ответа от модели.")
     except Exception as e:
-        return f"Ошибка при обращении к Ollama: {e}"
+        return f"❌ Ошибка при обращении к Ollama: {e}"
