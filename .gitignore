@@ -1,3 +1,4 @@
 .env
 voice_assistant/base.pt
 .venv/
+.venv311/
