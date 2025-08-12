@@ -35,9 +35,9 @@ TARGET_RMS = 0.07  # Целевая громкость после AGC
 
 EMA_ALPHA = 0.25  # Параметр сглаживания громкости
 
-BEAM_SIZE = 5  # Beam search — точность распознавания, можно увеличить, но будет медленнее
+BEAM_SIZE = 7  # Beam search — точность распознавания, можно увеличить, но будет медленнее
 
-MODEL_SIZE = "small"  # Размер модели whisper (tiny, base, small, medium и т.д.)
+MODEL_SIZE = "medium"  # Размер модели whisper (tiny, base, small, medium и т.д.)
 
 # ----------------------------------------
 
