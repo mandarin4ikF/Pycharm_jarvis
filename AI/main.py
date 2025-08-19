@@ -1,56 +1,56 @@
 import sys
+import json
 import os
 from src.core.router import RequestRouter
+from src.core.decomposer import TaskDecomposer
 
 def main():
     """
-    Главная функция, демонстрирующая работу маршрутизатора.
+    Главная функция, демонстрирующая совместную работу маршрутизатора и декомпозитора.
     """
-    print("🤖 Система Jarvis: Инициализация маршрутизатора...")
+    print("🤖 Система Jarvis: Инициализация...")
     
     try:
-        # Определяем абсолютный путь к конфигурационному файлу
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(base_dir, 'src', 'config', 'routing.yaml')
+        # Получаем абсолютный путь к файлу конфигурации
+# Получаем базовую директорию проекта (на уровень выше src)
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(base_dir, 'AI', 'src', 'config', 'routing.yaml')
         
-        # Создаем экземпляр роутера
         router = RequestRouter(config_path=config_path)
-        
     except Exception as e:
         print(f"❌ Критическая ошибка при инициализации: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print("\n--- Тестирование маршрутизации ---")
+    print("\n--- 1. Тестирование маршрутизации ---")
     
-    prompts = [
-        "Сколько будет 5+5?",
-        "Напиши функцию на Python, которая сортирует список чисел.",
-        "Предложи архитектуру для системы обработки больших данных в реальном времени."
-    ]
+    complex_goal = "Создай сложное приложение которое по фото определяет калории в еде"
     
-    for prompt in prompts:
-        result = router.route(prompt)
-        if result and result[1]:
-            complexity, model_name = result
-            print(f"Запрос: '{prompt}' -> Сложность: {complexity}, Модель: {model_name}")
-        else:
-            complexity, _ = result
-            print(f"Запрос: '{prompt}' -> Сложность: {complexity}, Модель не найдена в конфигурации.")
+    result = router.route(complex_goal)
+    if not result or not result[1]:
+        print("Не удалось определить модель для маршрутизации.")
+        sys.exit(1)
+        
+    complexity, model_name = result
+    print(f"Запрос: '{complex_goal}'")
+    print(f"-> Сложность: {complexity}, Рекомендуемая модель: {model_name}")
 
-    print("\n--- Тестирование механизма отката (fallback) ---")
+    print("\n--- 2. Тестирование декомпозиции ---")
     
-    # Симулируем, что модель для 'simple' не справилась
-    failed_complexity = 'simple'
-    fallback_result = router.get_fallback_model(failed_complexity)
-    if fallback_result:
-        new_complexity, fallback_model = fallback_result
-        print(f"Откат с '{failed_complexity}': используем '{new_complexity}' -> {fallback_model}")
-
-    # Симулируем отказ на последнем уровне
-    failed_complexity_3 = 'complex'
-    fallback_result_3 = router.get_fallback_model(failed_complexity_3)
-    if not fallback_result_3:
-        print(f"Откат с '{failed_complexity_3}': больше моделей нет, как и ожидалось.")
+    # Мы используем декомпозитор только для сложных задач
+    if complexity == 'complex':
+        try:
+            # Передаем модель, рекомендованную роутером, в декомпозитор
+            decomposer = TaskDecomposer(planning_model_name=model_name)
+            plan = decomposer.decompose(complex_goal)
+            
+            print("\n✅ Успех! Сгенерированный план:")
+            # Выводим красивый JSON
+            print(json.dumps(plan, indent=2, ensure_ascii=False))
+            
+        except ValueError as e:
+            print(f"\n❌ Ошибка планирования: {e}")
+    else:
+        print(f"Задача определена как '{complexity}', декомпозиция не требуется.")
 
 
 if __name__ == '__main__':
