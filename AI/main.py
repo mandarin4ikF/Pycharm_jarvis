@@ -1,57 +1,56 @@
 import sys
 import json
+import asyncio
 import os
+from pathlib import Path
 from src.core.router import RequestRouter
 from src.core.decomposer import TaskDecomposer
+from src.core.llm_client import OllamaClient
+from src.utils.config_loader import load_config
 
-def main():
-    """
-    Главная функция, демонстрирующая совместную работу маршрутизатора и декомпозитора.
-    """
+async def main():
     print("🤖 Система Jarvis: Инициализация...")
-    
     try:
-        # Получаем абсолютный путь к файлу конфигурации
-# Получаем базовую директорию проекта (на уровень выше src)
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        config_path = os.path.join(base_dir, 'AI', 'src', 'config', 'routing.yaml')
+        # Получаем абсолютный путь к директории проекта
+        base_dir = Path(__file__).parent
+        config_path = base_dir / 'src/config/app_config.yaml'
+        routing_path = base_dir / 'src/config/routing.yaml'
         
-        router = RequestRouter(config_path=config_path)
+        # Проверяем существование файлов
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+        if not routing_path.exists():
+            raise FileNotFoundError(f"Routing file not found: {routing_path}")
+        
+        app_config = load_config(str(config_path))
+        router = RequestRouter(config_path=str(routing_path))
+        ollama_client = OllamaClient(config=app_config['ollama_client'])
     except Exception as e:
         print(f"❌ Критическая ошибка при инициализации: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print("\n--- 1. Тестирование маршрутизации ---")
-    
-    complex_goal = "Создай сложное приложение которое по фото определяет калории в еде"
-    
-    result = router.route(complex_goal)
-    if not result or not result[1]:
-        print("Не удалось определить модель для маршрутизации.")
-        sys.exit(1)
-        
-    complexity, model_name = result
+    complex_goal = "Создай реферат по созданию робо-руки."
+  
+    print("\n--- 1. Маршрутизация ---")
+    complexity, model_name = router.route(complex_goal)
     print(f"Запрос: '{complex_goal}'")
     print(f"-> Сложность: {complexity}, Рекомендуемая модель: {model_name}")
 
-    print("\n--- 2. Тестирование декомпозиции ---")
-    
-    # Мы используем декомпозитор только для сложных задач
     if complexity == 'complex':
+        print("\n--- 2. Декомпозиция (реальный вызов LLM) ---")
         try:
-            # Передаем модель, рекомендованную роутером, в декомпозитор
-            decomposer = TaskDecomposer(planning_model_name=model_name)
-            plan = decomposer.decompose(complex_goal)
-            
+            decomposer = TaskDecomposer(model_name, ollama_client)
+            plan = await decomposer.decompose(complex_goal)
             print("\n✅ Успех! Сгенерированный план:")
-            # Выводим красивый JSON
             print(json.dumps(plan, indent=2, ensure_ascii=False))
-            
-        except ValueError as e:
-            print(f"\n❌ Ошибка планирования: {e}")
-    else:
-        print(f"Задача определена как '{complexity}', декомпозиция не требуется.")
-
+        except Exception as e:
+            print(f"\n❌ Ошибка во время декомпозиции: {e}")
+  
+    await ollama_client.close()
+    print("\nКлиент Ollama успешно завершил работу.")
 
 if __name__ == '__main__':
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nЗавершение работы...")
