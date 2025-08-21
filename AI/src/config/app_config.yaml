@@ -1,13 +1,27 @@
 # src/config/app_config.yaml
 
-
 # Конфигурация для асинхронного клиента Ollama
 ollama_client:
- # URL вашего локального сервера Ollama
- base_url: "http://localhost:11434"
+  # URL вашего локального сервера Ollama
+  base_url: "http://localhost:11434"
   # Таймаут на один запрос в секундах
- request_timeout: 180.0
+  request_timeout: 180.0
   # Максимальное количество повторных попыток при сбое сети или сервера
- max_retries: 3
+  max_retries: 3
   # Начальная задержка для повторной попытки в секундах (будет расти экспоненциально)
- retry_delay: 1.0
+  retry_delay: 1.0
+  # Модель по умолчанию
+  model: "llama3:8b"
+  # Параметры генерации
+  temperature: 0.1
+  max_tokens: 4096
+
+# Настройки логирования
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Настройки маршрутизации
+routing:
+  simple_threshold: 0.7
+  complex_threshold: 0.3

@@ -1,29 +1,22 @@
-# src/config/routing.yaml
-
-
 complexity_map:
- simple: "phi3:mini"
- medium: "qwen2:7b"
- complex: "llama3" # Используем 8b для упрощения локального запуска
-
+  simple: "phi3:mini"
+  medium: "qwen2:7b"
+  complex: "llama3"
 
 fallback_order:
- - simple
- - medium
- - complex
-
+  - simple
+  - medium
+  - complex
 
 classifier:
- model_name: "paraphrase-multilingual-MiniLM-L12-v2"
- # ВАЖНО: prototypes - это словарь (ключ: значение)
- prototypes:
-   simple:
-     - "посчитай 2+2"
-     - "какая сегодня погода"
-   medium:
-     - "напиши простой python скрипт для парсинга сайта"
-     - "объясни концепцию асинхронности"
-   complex:
-     - "разработай архитектуру для высоконагруженного веб-приложения"
-     - "создай многопоточного агента для автономного исследования"
-     - "создай простое flask-приложение с одним api эндпоинтом и напиши для него тесты"
+  model_name: "paraphrase-multilingual-MiniLM-L12-v2"
+  prototypes:
+    simple:
+      - "привет"
+      - "посчитай 2+2"
+    medium:
+      - "объясни концепцию ООП"
+      - "напиши python скрипт для чтения файла"
+    complex:
+      - "создай простое flask-приложение с одним api эндпоинтом и напиши для него тесты"
+      - "разработай архитектуру веб-приложения с авторизацией"
