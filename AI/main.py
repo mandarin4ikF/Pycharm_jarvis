@@ -16,7 +16,7 @@ from src.core.decomposer import TaskDecomposer
 from src.core.graph import GraphExecutor
 from src.core.crew import PlanRefinementCrew
 from src.core.context import CONTEXT
-
+from src.core.memory import WorkingMemory
 # === Настройка логирования ===
 logging.basicConfig(
     level=logging.INFO,
@@ -89,20 +89,24 @@ async def main():
         logger.info("🚀 Запуск выполнения финального плана через GraphExecutor...")
         try:
             graph_executor = GraphExecutor()
-            await graph_executor.run(plan=final_plan)
+            working_memory = {}  # или CONTEXT.get_working_memory() если есть
+            await graph_executor.run(plan=final_plan, working_memory=working_memory)
             logger.info("✅ Выполнение плана завершено.")
         except Exception as e:
             logger.error(f"❌ Ошибка при выполнении плана: {e}")
-    else:
-        logger.warning("⚠️ План не был сгенерирован, выполнение пропущено.")
 
-    # --- Завершение работы и освобождение ресурсов ---
-    try:
-        CONTEXT.initialize()  # 🔥 Убираем `await`!
-        logger.info("✅ Контекст инициализирован: LLM-клиент, память, инструменты и т.д.")
-    except Exception as e:
-        logger.critical(f"❌ Критическая ошибка при инициализации контекста: {e}")
-        sys.exit(1)
+
+
+    # Затем в блоке выполнения:
+    if final_plan:
+        logger.info("🚀 Запуск выполнения финального плана через GraphExecutor...")
+        try:
+            graph_executor = GraphExecutor()
+            working_memory = WorkingMemory()  # Создаем объект памяти
+            await graph_executor.run(plan=final_plan, working_memory=working_memory)
+            logger.info("✅ Выполнение плана завершено.")
+        except Exception as e:
+            logger.error(f"❌ Ошибка при выполнении плана: {e}")
 
 
 # --- Точка входа ---

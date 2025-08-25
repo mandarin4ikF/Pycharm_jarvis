@@ -112,7 +112,7 @@ async def code_review_agent(state: Dict[str, Any], task: Dict[str, Any]) -> Dict
 
    logger.info("Обращение к LLM для генерации ревью...")
    review_summary = await CONTEXT.ollama_client.invoke(
-       model="llama3:8b",
+       model="llama3",
        system_prompt=REVIEWER_SYSTEM_PROMPT,
        user_prompt=user_prompt
    )
@@ -154,7 +154,7 @@ async def test_generator_agent(state: Dict[str, Any], task: Dict[str, Any]) -> D
   
    logger.info("Обращение к LLM для генерации тестов...")
    test_code = await CONTEXT.ollama_client.invoke(
-       model="llama3:8b",
+       model="llama3",
        system_prompt=TESTER_SYSTEM_PROMPT,
        user_prompt=user_prompt
    )

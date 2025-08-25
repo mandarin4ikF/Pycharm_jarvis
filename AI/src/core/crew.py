@@ -1,39 +1,52 @@
 import logging
 from crewai import Agent, Task, Crew, Process
-from langchain_community.chat_models import ChatOllama
+from langchain_community.chat_models import ChatLiteLLM
 from src.core.memory import MemoryManager
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from typing import Type
-
+from crewai.tools import BaseTool
 
 logger = logging.getLogger(__name__)
 
-
-# === Кастомный инструмент для поиска в памяти ===
 class MemorySearchInput(BaseModel):
+    # ВАЖНО: Поле должно быть аннотировано как str с описанием
     query: str = Field(..., description="Ключевой запрос для поиска в долговременной памяти Jarvis.")
 
+# === Инструмент поиска в памяти ===
 class MemorySearchTool(BaseTool):
-    name: str = "Search Long-Term Memory"
-    description: str = "Используй этот инструмент для поиска релевантной информации в долговременной памяти Jarvis по ключевому запросу. Это поможет тебе найти контекст, предыдущие решения и факты."
-    args_schema: Type[BaseModel] = MemorySearchInput
-
-    def _run(self, query: str) -> str:
-        return self.func(query)
+    name: str = "Search_Long_Term_Memory"
+    description: str = "Используй этот инструмент для поиска релевантной информации в долговременной памяти Jarvis по ключевому запросу."
+    args_schema: Type[BaseModel] = MemorySearchInput  # Указываем схему
 
     def __init__(self, search_function, **kwargs):
         super().__init__(**kwargs)
-        self.func = search_function
+        # Явно сохраняем функцию поиска как атрибут объекта, а не Pydantic модели
+        object.__setattr__(self, 'search_function', search_function)
 
+    def _run(self, query: str) -> str:
+        """Синхронный запуск инструмента"""
+        try:
+            if hasattr(self, 'search_function') and callable(self.search_function):
+                result = self.search_function(query)
+                return str(result) if result else "Информация не найдена в памяти."
+            else:
+                return "Инструмент поиска в памяти не настроен правильно."
+        except Exception as e:
+            logger.error(f"Ошибка при поиске в памяти: {e}")
+            return f"Ошибка поиска: {str(e)}"
+
+    async def _arun(self, query: str) -> str:
+        """Асинхронный запуск инструмента"""
+        return self._run(query)
 
 # === Основной класс ===
 class PlanRefinementCrew:
     """
     Организует "мозговой штурм" команды из 4 ИИ-агентов для улучшения плана.
     """
-    def __init__(self, model_name: str = "llama3:8b"):
-        self.model = ChatOllama(model=model_name)
+    def __init__(self, model_name: str = "llama3"):
+        self.model = ChatLiteLLM(model="ollama/llama3")
         self.memory = MemoryManager()
 
     def _create_agents(self):
@@ -102,7 +115,7 @@ class PlanRefinementCrew:
             agents=[self.scientist, self.mentor, self.artist, self.engineer],
             tasks=[task_scientist, task_mentor, task_artist, task_engineer],
             process=Process.sequential,
-            verbose=2
+            verbose=True
         )
       
         logger.info("Запуск 'Совета Мыслителей' для улучшения плана...")
