@@ -1,83 +1,116 @@
+# ==============================================================================
+# Файл: main.py
+# Назначение: Главная точка входа в систему Jarvis
+# Описание: Инициализирует систему через глобальный контекст, обрабатывает задачу,
+#           использует маршрутизацию, декомпозицию, улучшение плана и выполнение.
+# ==============================================================================
+
 import sys
 import json
 import asyncio
 import logging
+
+# === Ядро системы ===
 from src.core.router import RequestRouter
 from src.core.decomposer import TaskDecomposer
-from src.core.llm_client import OllamaClient
 from src.core.graph import GraphExecutor
-from src.utils.config_loader import load_config
+from src.core.crew import PlanRefinementCrew
+from src.core.context import CONTEXT
 
-
-# Настройка логирования для вывода информации от всех модулей
+# === Настройка логирования ===
 logging.basicConfig(
-   level=logging.INFO,
-   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-   stream=sys.stdout
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
 )
-
-# Создаем глобальный логгер
 logger = logging.getLogger(__name__)
 
+
 async def main():
-   """Главная асинхронная функция, запускающая всю систему."""
-   logger.info("🤖 Система Jarvis: Инициализация...")
-  
-   try:
-       app_config = load_config('AI/src/config/app_config.yaml')
-       router = RequestRouter(config_path='AI/src/config/routing.yaml')
-       ollama_client = OllamaClient(config=app_config['ollama_client'])
-   except Exception as e:
-       logger.critical(f"❌ Критическая ошибка при инициализации: {e}")
-       sys.exit(1)
+    """Главная асинхронная функция, запускающая всю систему Jarvis."""
+    logger.info("🤖 Система Jarvis: Инициализация через глобальный контекст...")
+
+    try:
+        # --- Инициализация всей системы через контекст ---
+        CONTEXT.initialize()
+        logger.info("✅ Контекст инициализирован: LLM-клиент, память, инструменты и т.д.")
+    except Exception as e:
+        logger.critical(f"❌ Критическая ошибка при инициализации контекста: {e}")
+        sys.exit(1)
+
+    # --- Инициализация маршрутизатора (использует клиент из контекста) ---
+    router = RequestRouter(config_path='AI/src/config/routing.yaml')
+    logger.info("🔧 Маршрутизатор запросов загружен.")
+
+    # --- Получение задачи ---
+    complex_goal = "Напиши сложное приложение для определения цены монеты, проведи ее ревью и протестируй."
+    logger.info(f"🎯 Получена задача: '{complex_goal}'")
+
+    # --- Маршрутизация (теперь асинхронная) ---
+    try:
+        complexity, model_name = await router.route(complex_goal)
+        logger.info(f"🧠 Запрос классифицирован как '{complexity}', выбрана модель '{model_name}'.")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при маршрутизации запроса: {e}")
+        await CONTEXT.close()
+        sys.exit(1)
+
+    # --- Декомпозиция задачи (если сложная) ---
+    initial_plan = None
+    if complexity == 'complex':
+        try:
+            decomposer = TaskDecomposer(planning_model_name=model_name)
+            initial_plan = await decomposer.decompose(complex_goal)
+            logger.info("✅ Первоначальный план успешно сгенерирован.")
+        except Exception as e:
+            logger.error(f"❌ Ошибка во время декомпозиции: {e}")
+
+    # --- Улучшение плана с помощью CrewAI (Совет Мыслителей) ---
+    final_plan = initial_plan
+    if initial_plan:
+        try:
+            refinement_crew = PlanRefinementCrew()
+            refined_plan_str = await asyncio.to_thread(
+                refinement_crew.run,
+                json.dumps(initial_plan, indent=2, ensure_ascii=False),
+                complex_goal
+            )
+            final_plan = json.loads(refined_plan_str)
+            logger.info("✅ План успешно улучшен 'Советом Мыслителей'.")
+            print("\n--- 📋 ФИНАЛЬНЫЙ ПЛАН ---")
+            print(json.dumps(final_plan, indent=2, ensure_ascii=False))
+            print("----------------------")
+        except Exception as e:
+            logger.error(f"❌ Ошибка во время улучшения плана: {e}. Используется первоначальный план.")
+            final_plan = initial_plan
+
+    # --- Выполнение плана через GraphExecutor ---
+    if final_plan:
+        logger.info("🚀 Запуск выполнения финального плана через GraphExecutor...")
+        try:
+            graph_executor = GraphExecutor()
+            await graph_executor.run(plan=final_plan)
+            logger.info("✅ Выполнение плана завершено.")
+        except Exception as e:
+            logger.error(f"❌ Ошибка при выполнении плана: {e}")
+    else:
+        logger.warning("⚠️ План не был сгенерирован, выполнение пропущено.")
+
+    # --- Завершение работы и освобождение ресурсов ---
+    try:
+        CONTEXT.initialize()  # 🔥 Убираем `await`!
+        logger.info("✅ Контекст инициализирован: LLM-клиент, память, инструменты и т.д.")
+    except Exception as e:
+        logger.critical(f"❌ Критическая ошибка при инициализации контекста: {e}")
+        sys.exit(1)
 
 
-   complex_goal = "Создай Робо-руку как у железного человека"
-  
-   # 1. Маршрутизация
-   result = router.route(complex_goal)
-   if not result or not result[1]:
-       logger.error("Не удалось определить модель для маршрутизации.")
-       await ollama_client.close()
-       sys.exit(1)
-       
-   complexity, model_name = result
-   logger.info(f"Запрос классифицирован как '{complexity}', выбрана модель '{model_name}'.")
-
-
-   # 2. Декомпозиция
-   plan = None
-   if complexity == 'complex':
-       try:
-           decomposer = TaskDecomposer(model_name, ollama_client)
-           plan = await decomposer.decompose(complex_goal)
-           logger.info("✅ План успешно сгенерирован.")
-           print(json.dumps(plan, indent=2, ensure_ascii=False))
-       except Exception as e:
-           logger.error(f"❌ Ошибка во время декомпозиции: {e}")
-  
-   await ollama_client.close()
-
-
-   # 3. Выполнение
-   if plan:
-       logger.info("🚀 Запуск выполнения плана через LangGraph...")
-       try:
-           graph_executor = GraphExecutor()
-           await graph_executor.run(plan)
-       except Exception as e:
-           logger.error(f"❌ Ошибка при выполнении графа: {e}")
-   else:
-       logger.warning("План не был сгенерирован, выполнение пропускается.")
-
-
+# --- Точка входа ---
 if __name__ == '__main__':
-   # Этот скрипт ожидает, что у вас есть папка src/config/
-   # с файлами app_config.yaml и routing.yaml.
-   # Убедитесь, что Ollama запущена и модель llama3:8b загружена.
-   try:
-       asyncio.run(main())
-   except KeyboardInterrupt:
-       print("\nЗавершение работы по команде пользователя.")
-   except Exception as e:
-       print(f"Произошла непредвиденная ошибка: {e}")
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("\n👋 Завершение работы по команде пользователя (Ctrl+C).")
+    except Exception as e:
+        logger.critical(f"💥 Произошла непредвиденная ошибка: {e}")
+        sys.exit(1)

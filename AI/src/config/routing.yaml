@@ -1,22 +1,12 @@
+# Модель, используемая для маршрутизации. Должна быть быстрой.
+router_model: "llama3"
+
+# Карта сопоставления сложности с моделями для выполнения задач
 complexity_map:
-  simple: "phi3:mini"
-  medium: "qwen2:7b"
-  complex: "llama3"
-
+   simple: "llama3"
+   medium: "llama3"
+   complex: "llama3"
 fallback_order:
-  - simple
-  - medium
-  - complex
-
-classifier:
-  model_name: "paraphrase-multilingual-MiniLM-L12-v2"
-  prototypes:
-    simple:
-      - "привет"
-      - "посчитай 2+2"
-    medium:
-      - "объясни концепцию ООП"
-      - "напиши python скрипт для чтения файла"
-    complex:
-      - "создай простое flask-приложение с одним api эндпоинтом и напиши для него тесты"
-      - "разработай архитектуру веб-приложения с авторизацией"
+   - simple
+   - medium
+   - complex
