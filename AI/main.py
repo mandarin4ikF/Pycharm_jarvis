@@ -89,7 +89,7 @@ async def main():
         logger.info("🚀 Запуск выполнения финального плана через GraphExecutor...")
         try:
             graph_executor = GraphExecutor()
-            working_memory = {}  # или CONTEXT.get_working_memory() если есть
+            working_memory = WorkingMemory()  # если у тебя есть класс WorkingMemory
             await graph_executor.run(plan=final_plan, working_memory=working_memory)
             logger.info("✅ Выполнение плана завершено.")
         except Exception as e:

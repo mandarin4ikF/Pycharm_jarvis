@@ -62,12 +62,19 @@ class TaskDecomposer:
        logger.info(f"Запуск декомпозиции цели с помощью LangChain: '{goal}'")
        try:
            # `ainvoke` - асинхронный вызов цепи
-           plan_object: Plan = await self.chain.ainvoke({
-               "goal": goal,
-               "format_instructions": parser.get_format_instructions()
-           })
-           # Конвертируем Pydantic-объект обратно в словарь для совместимости
-           return plan_object.dict()
+        plan_object: Plan = await self.chain.ainvoke({
+            "goal": goal,
+            "format_instructions": parser.get_format_instructions()
+        })
+        # Конвертируем Pydantic-объект обратно в словарь
+        plan_dict = plan_object.dict()
+
+        # Проверяем, что план содержит задачи
+        if not plan_dict.get("tasks"):
+            raise ValueError("Сгенерированный план не содержит задач!")
+
+        return plan_dict
+
        except Exception as e:
            logger.error(f"Ошибка во время работы цепи декомпозиции: {e}")
            raise ValueError("Не удалось сгенерировать валидный план с помощью LangChain.")
