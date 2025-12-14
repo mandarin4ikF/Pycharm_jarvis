@@ -1,0 +1,665 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>JARVTS UI Prototype</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+   <style>
+       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+
+       body {
+           font-family: 'Inter', sans-serif;
+           background-color: #1a1a1a;
+           overflow: hidden;
+           margin: 0;
+           padding: 0;
+           height: 100vh;
+           display: flex;
+           align-items: center;
+           justify-content: flex-start;
+       }
+
+       #sidebar {
+           position: fixed;
+           left: 0;
+           top: 0;
+           height: 100%;
+           width: 60px;
+           background: rgba(10, 10, 10, 0.5);
+           backdrop-filter: blur(20px) saturate(180%);
+           -webkit-backdrop-filter: blur(20px) saturate(180%);
+           border-right: 1px solid rgba(255, 255, 255, 0.1);
+           transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+           z-index: 1000;
+           overflow: hidden;
+           display: flex;
+           flex-direction: column;
+           justify-content: center; /* Center main content */
+       }
+      
+       body:hover #sidebar, #sidebar.active {
+           width: 320px;
+       }
+      
+       #stars-canvas {
+           position: absolute;
+           top: 0;
+           left: 0;
+           width: 100%;
+           height: 100%;
+           z-index: -1;
+       }
+
+       #smart-circle-container {
+           position: relative;
+           width: 120px;
+           height: 120px;
+           margin: 0 auto;
+           transform: scale(0.4);
+           transform-origin: center center;
+           transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+       }
+      
+       body:hover #sidebar #smart-circle-container,
+       #sidebar.active #smart-circle-container {
+           transform: scale(1);
+       }
+
+       #circle-canvas {
+           position: absolute;
+           top: 0;
+           left: 0;
+           width: 100%;
+           height: 100%;
+       }
+
+       .info-panel {
+           position: absolute;
+           bottom: 24px;
+           left: 24px;
+           right: 24px;
+           text-align: center;
+           color: #a0a0a0;
+       }
+
+       #status-display {
+           opacity: 0;
+           height: 0;
+           overflow: hidden;
+           transition: opacity 0.3s ease-out;
+           margin-bottom: 120px; /* Space for the circle */
+       }
+      
+       body:hover #sidebar #status-display,
+       #sidebar.active #status-display {
+           opacity: 1;
+           height: auto;
+           transition-delay: 0.2s;
+       }
+
+       .status-text {
+           font-size: 1rem;
+           font-weight: 500;
+           color: #e0e0e0;
+           margin-bottom: 8px;
+       }
+       .hint-text {
+           font-size: 0.8rem;
+           color: #707070;
+       }
+
+       .settings-container {
+           position: absolute;
+           bottom: 18px;
+           left: 0;
+           right: 0;
+           display: flex;
+           justify-content: center;
+       }
+
+       #settings-icon {
+           cursor: pointer;
+           opacity: 0.4;
+           transition: opacity 0.3s, transform 0.3s;
+       }
+       #settings-icon:hover {
+           opacity: 1;
+           transform: rotate(45deg);
+       }
+
+       #settings-panel {
+           position: absolute;
+           bottom: 60px; /* Position above the icon */
+           left: 24px;
+           right: 24px;
+           background: rgba(20, 20, 20, 0.7);
+           backdrop-filter: blur(10px);
+           border-radius: 12px;
+           padding: 16px;
+           color: #e0e0e0;
+           opacity: 0;
+           transform: translateY(20px);
+           pointer-events: none;
+           transition: opacity 0.3s, transform 0.3s;
+       }
+       #settings-panel.visible {
+           opacity: 1;
+           transform: translateY(0);
+           pointer-events: auto;
+       }
+       .settings-item {
+           display: flex;
+           justify-content: space-between;
+           align-items: center;
+           font-size: 0.9rem;
+           margin-bottom: 12px;
+       }
+   </style>
+</head>
+<body>
+
+   <div id="sidebar">
+       <canvas id="stars-canvas"></canvas>
+      
+       <div id="smart-circle-container">
+           <canvas id="circle-canvas"></canvas>
+       </div>
+
+       <div class="info-panel">
+            <div id="status-display">
+               <p class="status-text">IDLE</p>
+               <p class="hint-text">Say "JARVTS" or press Win+Space</p>
+           </div>
+       </div>
+
+       <div class="settings-container">
+           <div id="settings-panel">
+               <div class="settings-item">
+                   <span>Show Comets</span>
+                   <input type="checkbox" checked>
+               </div>
+                <div class="settings-item">
+                   <span>Theme</span>
+                   <span>Dark</span>
+               </div>
+            </div>
+           <svg id="settings-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings text-white"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l-.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+       </div>
+   </div>
+  
+   <div class="p-10 ml-20 text-white/50 max-w-2xl">
+       <h1 class="text-3xl font-bold text-white mb-4">JARVTS Prototype</h1>
+       <p>This is a demonstration of the JARVTS sidebar UI. Click anywhere on the page to cycle through the AI states: <strong class="text-white">LOADING → IDLE → LISTENING → THINKING → SPEAKING → ERROR</strong>.</p>
+       <p class="mt-4">Click the gear icon to open the settings panel.</p>
+   </div>
+
+   <!-- Socket.IO библиотека -->
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+   
+   <script>
+       // WebSocket подключение к серверу
+       const socket = io();
+       
+       const sidebar = document.getElementById('sidebar');
+       const statusText = document.querySelector('.status-text');
+       const hintText = document.querySelector('.hint-text');
+
+       // Получаем обновления состояний через WebSocket
+       socket.on('state_update', function(data) {
+           console.log('Получено обновление состояния:', data);
+           if (data.status && stateInfo[data.status]) {
+               setState(data.status);
+               if (data.message) {
+                   hintText.textContent = data.message;
+               } else {
+                   hintText.textContent = stateInfo[data.status].hint;
+               }
+               
+               // Обработка специальных состояний
+               if (data.emotion && data.status === 'EMOTION_ANALYZING') {
+                   hintText.textContent = `Обнаружена эмоция: ${data.emotion}`;
+               }
+               if (data.wake_word && data.status === 'WAKE_WORD_LISTENING') {
+                   hintText.textContent = `Обнаружено: "${data.wake_word}"`;
+               }
+           }
+       });
+
+       socket.on('connect', function() {
+           console.log('Подключен к JARVIS WebSocket');
+       });
+
+       socket.on('disconnect', function() {
+           console.log('Отключен от JARVIS WebSocket');
+       });
+
+       const states = ['LOADING', 'WAKE_WORD_LISTENING', 'IDLE', 'LISTENING', 'THINKING', 'EMOTION_ANALYZING', 'SPEAKING', 'ERROR'];
+       const stateInfo = {
+           'LOADING': { status: 'ЗАГРУЗКА...', hint: 'Инициализация систем' },
+           'WAKE_WORD_LISTENING': { status: 'ОЖИДАНИЕ', hint: 'Скажите "JARVIS" или "COMPUTER"' },
+           'IDLE': { status: 'ГОТОВ', hint: 'Ожидаю команды' },
+           'LISTENING': { status: 'СЛУШАЮ...', hint: 'Я вас слышу' },
+           'THINKING': { status: 'ДУМАЮ...', hint: 'Обрабатываю ваш запрос' },
+           'EMOTION_ANALYZING': { status: 'АНАЛИЗ ЭМОЦИЙ', hint: 'Определяю настроение' },
+           'SPEAKING': { status: 'ОТВЕЧАЮ...', hint: 'Генерирую ответ' },
+           'ERROR': { status: 'ОШИБКА', hint: 'Что-то пошло не так' }
+       };
+       let currentStateIndex = 0;
+       let aiState = 'LOADING'; // Initial state
+
+       // State timers and phases
+       let errorStateTimer = 0;
+       let ekgPoints = [];
+       let animationPhase = 'idle';
+       let animationPhaseTimer = 0;
+       let attractedStars = [];
+
+       function setState(newState) {
+           aiState = newState;
+           statusText.textContent = stateInfo[aiState].status;
+           hintText.textContent = stateInfo[aiState].hint;
+           if (aiState !== 'IDLE' && aiState !== 'LOADING') {
+               sidebar.classList.add('active');
+           } else {
+               sidebar.classList.remove('active');
+           }
+
+           if (aiState === 'ERROR') {
+               errorStateTimer = 0;
+               ekgPoints = [];
+           }
+           if (aiState === 'LOADING') {
+               animationPhase = 'expanding'; // Start with expansion
+               animationPhaseTimer = 0;
+               attractedStars.forEach(s => s.isAttracted = false);
+               attractedStars = [];
+               const availableStars = [...stars];
+               for(let i=0; i<7; i++) {
+                   if (availableStars.length > 0) {
+                       const starIndex = Math.floor(Math.random() * availableStars.length);
+                       const star = availableStars.splice(starIndex, 1)[0];
+                       star.isAttracted = true;
+                       star.startX = star.x;
+                       star.startY = star.y;
+                       attractedStars.push(star);
+                   }
+               }
+           } else {
+                animationPhase = 'idle';
+                if (attractedStars.length > 0) {
+                   attractedStars.forEach(s => s.isAttracted = false);
+                   attractedStars = [];
+                }
+           }
+       }
+
+       // Только для демонстрации - в продакшене убрать
+       document.body.addEventListener('click', (e) => {
+           if (e.target.closest('#sidebar')) return;
+           // Комментируем для продакшена - состояния приходят от сервера
+           // currentStateIndex = (currentStateIndex + 1) % states.length;
+           // setState(states[currentStateIndex]);
+       });
+      
+       const settingsIcon = document.getElementById('settings-icon');
+       const settingsPanel = document.getElementById('settings-panel');
+       settingsIcon.addEventListener('click', () => {
+           settingsPanel.classList.toggle('visible');
+       });
+
+       // --- Stars & Comets Animation ---
+       const starsCanvas = document.getElementById('stars-canvas');
+       const starsCtx = starsCanvas.getContext('2d');
+       let stars = [];
+       let comets = [];
+       const MAX_STARS = 50;
+       let cometSpawnTimer = 0;
+       const COMET_INTERVAL = 15 * 60;
+
+       function resizeStarsCanvas() {
+           starsCanvas.width = sidebar.clientWidth;
+           starsCanvas.height = sidebar.clientHeight;
+       }
+      
+       class Star {
+           constructor(x, y, radius, alpha) {
+               this.x = x; this.y = y; this.radius = radius; this.alpha = alpha;
+               this.maxAlpha = 0.1 + Math.random() * 0.7;
+               this.velocity = Math.random() * 0.0005;
+               this.fadingIn = true;
+               this.isAttracted = false;
+               this.startX = 0;
+               this.startY = 0;
+           }
+           draw() {
+               starsCtx.beginPath();
+               starsCtx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+               starsCtx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+               starsCtx.fill();
+           }
+           update() {
+               if (this.fadingIn) {
+                   this.alpha += this.velocity;
+                   if (this.alpha >= this.maxAlpha) this.fadingIn = false;
+               } else {
+                   this.alpha -= this.velocity;
+                   if (this.alpha <= 0) {
+                      this.x = Math.random() * starsCanvas.width;
+                      this.y = Math.random() * starsCanvas.height;
+                      this.alpha = 0; this.fadingIn = true;
+                   }
+               }
+               this.draw();
+           }
+       }
+      
+       class Comet {
+            constructor(canvasWidth, canvasHeight) {
+               this.x = Math.random() * canvasWidth;
+               this.y = -20;
+               this.length = Math.random() * 100 + 40;
+               this.speed = Math.random() * 1.5 + 0.5;
+               this.angle = Math.PI * 0.4;
+           }
+           draw() {
+               const endX = this.x - this.length * Math.cos(this.angle);
+               const endY = this.y - this.length * Math.sin(this.angle);
+               const gradient = starsCtx.createLinearGradient(this.x, this.y, endX, endY);
+               gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+               gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+               starsCtx.beginPath(); starsCtx.moveTo(this.x, this.y); starsCtx.lineTo(endX, endY);
+               starsCtx.strokeStyle = gradient; starsCtx.lineWidth = 1; starsCtx.stroke();
+           }
+           update() { this.x += this.speed * Math.cos(this.angle); this.y += this.speed * Math.sin(this.angle); this.draw(); }
+       }
+
+       function initStars() {
+           stars = [];
+           for (let i = 0; i < MAX_STARS; i++) {
+               stars.push(new Star(
+                   Math.random() * starsCanvas.width, Math.random() * starsCanvas.height,
+                   Math.random() * 1.2, // Stars are small points
+                   Math.random() * 0.1
+               ));
+           }
+       }
+
+       function animateStars() {
+           starsCtx.clearRect(0, 0, starsCanvas.width, starsCanvas.height);
+           stars.filter(s => !s.isAttracted).forEach(star => star.update());
+          
+           if (aiState === 'LOADING' && animationPhase === 'shrinking') {
+               const shrinkDuration = 90;
+               const progress = animationPhaseTimer / shrinkDuration;
+               const targetX = sidebar.clientWidth / 2;
+               const targetY = sidebar.clientHeight / 2;
+               attractedStars.forEach(star => {
+                   star.x = star.startX + (targetX - star.startX) * progress;
+                   star.y = star.startY + (targetY - star.startY) * progress;
+                   star.alpha = 1 - progress; // Fade out as it moves
+                   star.draw();
+               });
+           }
+
+           cometSpawnTimer++;
+           if (cometSpawnTimer >= COMET_INTERVAL) {
+               if (comets.length === 0 && sidebar.clientWidth > 100) {
+                   comets.push(new Comet(starsCanvas.width, starsCanvas.height));
+               }
+               cometSpawnTimer = 0;
+           }
+           comets.forEach((comet, index) => {
+               comet.update();
+               if (comet.y > starsCanvas.height + comet.length) {
+                   comets.splice(index, 1);
+               }
+           });
+
+           if (aiState === 'THINKING' && Math.random() < 0.1) {
+                const starIndex = Math.floor(Math.random() * stars.length);
+                stars[starIndex].alpha = Math.min(stars[starIndex].maxAlpha * 2, 1.0);
+           }
+       }
+      
+       // --- Smart Circle Animation ---
+       const circleCanvas = document.getElementById('circle-canvas');
+       const circleCtx = circleCanvas.getContext('2d');
+       const circleContainer = document.getElementById('smart-circle-container');
+      
+       let points = [];
+       const NUM_POINTS = 45;
+       const CIRCLE_RADIUS = 45;
+       let pulse = 0;
+      
+       const voiceBars = [];
+       const NUM_BARS = 7;
+       for (let i = 0; i < NUM_BARS; i++) {
+           voiceBars.push({ height: 10, targetHeight: 10, speed: 0.1 + Math.random() * 0.2 });
+       }
+
+       function resizeCircleCanvas() {
+           const size = circleContainer.clientWidth;
+           circleCanvas.width = size;
+           circleCanvas.height = size;
+       }
+
+       class Point {
+           constructor(x, y) {
+               this.x = x; this.y = y;
+               this.targetX = x; this.targetY = y;
+               this.angle = Math.random() * Math.PI * 2;
+               this.radius = CIRCLE_RADIUS;
+               this.speed = (Math.random() - 0.5) * 0.01;
+               this.size = 1 + Math.random() * 1.2;
+           }
+           getSpherePosition(centerX, centerY, radius) {
+               return {
+                   x: centerX + Math.cos(this.angle) * radius,
+                   y: centerY + Math.sin(this.angle) * radius,
+               };
+           }
+       }
+
+       function initCircle() {
+           points = [];
+           const centerX = circleContainer.clientWidth / 2;
+           const centerY = circleContainer.clientHeight / 2;
+           for(let i = 0; i < NUM_POINTS; i++) {
+               points.push(new Point(centerX, centerY));
+           }
+       }
+
+       function animateCircle() {
+           const centerX = circleCanvas.width / 2;
+           const centerY = circleCanvas.height / 2;
+           circleCtx.clearRect(0, 0, circleCanvas.width, circleCanvas.height);
+
+           if (aiState === 'ERROR') {
+               errorStateTimer++;
+               const pulseDuration = 75; // Duration of one pulse
+               const flatlineTime = pulseDuration * 2;
+               const width = CIRCLE_RADIUS * 2;
+
+               // Calculate the next point in the EKG
+               const progress = errorStateTimer / pulseDuration;
+               let yOffset = 0;
+               if (errorStateTimer < flatlineTime) {
+                   const p = progress % 1;
+                   if (p < 0.1) yOffset = 0;
+                   else if (p < 0.2) yOffset = Math.sin((p - 0.1) * Math.PI * 5) * 10;
+                   else if (p < 0.3) yOffset = 0;
+                   else if (p < 0.35) yOffset = Math.sin((p - 0.3) * Math.PI * 10) * -5;
+                   else if (p < 0.45) yOffset = Math.sin((p - 0.35) * Math.PI * 5) * 40;
+                   else if (p < 0.5) yOffset = Math.sin((p - 0.45) * Math.PI * 10) * -15;
+                   else if (p < 0.7) yOffset = Math.sin((p - 0.5) * Math.PI * 2.5) * 8;
+               }
+               ekgPoints.push(centerY - yOffset);
+               if (ekgPoints.length > width) {
+                   ekgPoints.shift();
+               }
+
+               // Draw the EKG line
+               circleCtx.beginPath();
+               const startX = centerX - CIRCLE_RADIUS;
+               ekgPoints.forEach((pointY, i) => {
+                   if (i === 0) circleCtx.moveTo(startX + i, pointY);
+                   else circleCtx.lineTo(startX + i, pointY);
+               });
+
+               circleCtx.strokeStyle = '#ff4d4d';
+               circleCtx.lineWidth = 2;
+               circleCtx.shadowColor = '#ff4d4d';
+               circleCtx.shadowBlur = 10;
+               circleCtx.stroke();
+               circleCtx.shadowBlur = 0;
+               return;
+           }
+
+           if (aiState === 'SPEAKING') {
+               const barWidth = 8;
+               const gap = 4;
+               const totalWidth = NUM_BARS * barWidth + (NUM_BARS - 1) * gap;
+               const startX = centerX - totalWidth / 2;
+              
+               voiceBars.forEach((bar) => {
+                   if (Math.abs(bar.height - bar.targetHeight) < 1) {
+                       bar.targetHeight = 5 + Math.random() * 50;
+                   }
+                   bar.height += (bar.targetHeight - bar.height) * bar.speed;
+               });
+              
+               points.forEach((p, i) => {
+                   const barIndex = i % NUM_BARS;
+                   const bar = voiceBars[barIndex];
+                   p.targetX = startX + barIndex * (barWidth + gap) + barWidth / 2;
+                   const yPos = (i / NUM_POINTS) * bar.height - bar.height / 2;
+                   p.targetY = centerY + yPos;
+               });
+
+           } else if (aiState === 'LOADING') {
+               animationPhaseTimer++;
+               let currentRadius = CIRCLE_RADIUS;
+              
+               if (animationPhase === 'expanding') {
+                   const expandDuration = 30;
+                   const progress = animationPhaseTimer / expandDuration;
+                   currentRadius = CIRCLE_RADIUS + (CIRCLE_RADIUS * 0.2) * Math.sin(progress * Math.PI);
+                   if (animationPhaseTimer >= expandDuration) {
+                       animationPhase = 'shrinking';
+                       animationPhaseTimer = 0;
+                   }
+               } else if (animationPhase === 'shrinking') {
+                   const shrinkDuration = 90;
+                   const startRadius = CIRCLE_RADIUS; // Shrink from normal size
+                   const progress = Math.min(1, animationPhaseTimer / shrinkDuration);
+                   currentRadius = startRadius * (1 - progress);
+                   if (progress >= 1) {
+                       animationPhase = 'exploding';
+                       animationPhaseTimer = 0;
+                   }
+               } else if (animationPhase === 'exploding') {
+                   const explodeDuration = 40;
+                   const progress = animationPhaseTimer / explodeDuration;
+                   currentRadius = (CIRCLE_RADIUS * 1.5) * progress; // Overshoot
+                   if (animationPhaseTimer >= explodeDuration) {
+                       animationPhase = 'settling';
+                       animationPhaseTimer = 0;
+                   }
+               } else if (animationPhase === 'settling') {
+                   const settleDuration = 60;
+                   const progress = animationPhaseTimer / settleDuration;
+                   const overshootRadius = CIRCLE_RADIUS * 1.5;
+                   currentRadius = overshootRadius - (overshootRadius - CIRCLE_RADIUS) * progress;
+                   if (animationPhaseTimer >= settleDuration) {
+                       setState('IDLE'); // End of loading
+                   }
+               }
+
+               points.forEach(p => {
+                   const spherePos = p.getSpherePosition(centerX, centerY, currentRadius);
+                   p.targetX = spherePos.x;
+                   p.targetY = spherePos.y;
+               });
+
+           } else { // IDLE, LISTENING or THINKING
+               let currentRadius = CIRCLE_RADIUS;
+               if (aiState === 'LISTENING') {
+                   pulse += 0.1;
+                   currentRadius = CIRCLE_RADIUS + Math.sin(pulse) * 5;
+               }
+               points.forEach(p => {
+                   if (aiState === 'THINKING' && Math.random() < 0.05) {
+                       p.angle = Math.random() * Math.PI * 2;
+                   } else {
+                       p.angle += p.speed;
+                   }
+                   const spherePos = p.getSpherePosition(centerX, centerY, currentRadius);
+                   p.targetX = spherePos.x;
+                   p.targetY = spherePos.y;
+               });
+           }
+
+           const easing = 0.08;
+           points.forEach(p => {
+               p.x += (p.targetX - p.x) * easing;
+               p.y += (p.targetY - p.y) * easing;
+           });
+          
+           for (let i = 0; i < points.length; i++) {
+               for (let j = i + 1; j < points.length; j++) {
+                   const p1 = points[i];
+                   const p2 = points[j];
+                   const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+                   const threshold = (aiState === 'SPEAKING') ? 25 : 40;
+                   if (dist < threshold) {
+                       circleCtx.beginPath();
+                       circleCtx.moveTo(p1.x, p1.y);
+                       circleCtx.lineTo(p2.x, p2.y);
+                       circleCtx.strokeStyle = `rgba(200, 200, 200, ${1 - dist / threshold})`;
+                       circleCtx.lineWidth = 0.5;
+                       circleCtx.stroke();
+                   }
+               }
+           }
+
+           points.forEach(p => {
+               circleCtx.beginPath();
+               circleCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+               circleCtx.fillStyle = '#e0e0e0';
+               circleCtx.fill();
+           });
+       }
+      
+       function mainLoop() {
+           animateStars();
+           animateCircle();
+           requestAnimationFrame(mainLoop);
+       }
+
+       function handleResize() {
+           resizeStarsCanvas();
+           resizeCircleCanvas();
+           initStars();
+       }
+      
+       const resizeObserver = new ResizeObserver(entries => {
+           for (let entry of entries) {
+               if(entry.target.id === 'sidebar') handleResize();
+           }
+       });
+       resizeObserver.observe(sidebar);
+
+       window.addEventListener('load', () => {
+           resizeCircleCanvas();
+           initStars();
+           initCircle();
+           setState('LOADING'); // Start with the loading animation
+           mainLoop();
+       });
+
+   </script>
+</body>
+</html>
+
